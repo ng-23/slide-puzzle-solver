@@ -2,15 +2,17 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 from PIL import Image, ImageTk
 import random
+import copy
 
 # for testing, fix the random state
 SEED = 123
 random.seed(SEED)
 
 class SlidePuzzle:
-    def __init__(self, root):
+    def __init__(self, root, debug=False):
         self.root = root
         self.root.title("Image Slide Puzzle")
+        self.debug = debug
         
         # Game state
         self.size = 3  # 3x3 grid
@@ -129,7 +131,17 @@ class SlidePuzzle:
     
         return moves
         
-    def make_move(self, i, j):
+    def make_move(self, i, j, simulate=False):
+        # simulate making the move, but don't actually change the board
+        if simulate:
+            if (i,j) not in self.get_possible_moves():
+                return None # invalid move, no valid board
+            
+            game_state = copy.deepcopy(self.current_state) # don't want to modify the game state, make a copy
+            
+            # move must be valid
+            # TODO: just swap the empty tile with the tile at the i,j position
+
         # Check if the clicked tile is adjacent to empty space
         if (i, j) in self.get_possible_moves():
             self.num_moves += 1
@@ -157,10 +169,11 @@ class SlidePuzzle:
                     self.buttons[i][j].config(image=self.image_tiles[value])
                 else:
                     self.buttons[i][j].config(image=self.image_tiles[value])
-        print(f'Total moves: {self.num_moves}')
-        print(f'Current game state:\n{self.current_state}')
-        print(f'Possible moves:\n{self.get_possible_moves()}')
-        print('-'*50)
+        if self.debug:
+            print(f'Total moves: {self.num_moves}')
+            print(f'Current game state:\n{self.current_state}')
+            print(f'Possible moves:\n{self.get_possible_moves()}')
+            print('-'*50)
    
     def check_win(self):
         # Check if current state matches solved state
