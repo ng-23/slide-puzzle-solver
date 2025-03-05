@@ -5,11 +5,13 @@ import random
 import copy
 
 # for testing, fix the random state
+# and put the puzzle in debug/verbose mode
 SEED = 123
 random.seed(SEED)
+DEBUG = True
 
 class SlidePuzzle:
-    def __init__(self, root, debug=False):
+    def __init__(self, root:tk.Tk, debug=False):
         self.root = root
         self.root.title("Image Slide Puzzle")
         self.debug = debug
@@ -48,7 +50,7 @@ class SlidePuzzle:
         
     def load_image(self):
         # Open file dialog to choose an image
-        file_path = 'img.jpg'
+        file_path = '/home/noahg/COSC405/assignment2/slide-puzzle-solver-assignment-ng-23/img.jpg'
         
         if file_path:
             # Load and resize image
@@ -119,10 +121,13 @@ class SlidePuzzle:
         # Update display
         self.update_display()
         
-    def get_possible_moves(self):
+    def get_possible_moves(self, simulate=False, empty_pos=()):
         moves = []
-        i, j = self.empty_pos
-        
+        if simulate:
+            i, j = empty_pos
+        else:
+            i, j = self.empty_pos
+            
         # Check all adjacent positions
         for di, dj in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
             new_i, new_j = i + di, j + dj
@@ -131,17 +136,22 @@ class SlidePuzzle:
     
         return moves
         
-    def make_move(self, i, j, simulate=False):
+    def make_move(self, i, j, simulate=False, game_state=None, empty_pos=()) -> None|list[list[int]]:
         # simulate making the move, but don't actually change the board
         if simulate:
-            if (i,j) not in self.get_possible_moves():
+            if (i,j) not in self.get_possible_moves(simulate=True, empty_pos=empty_pos):
                 return None # invalid move, no valid board
-            
-            game_state = copy.deepcopy(self.current_state) # don't want to modify the game state, make a copy
-            
+                        
             # move must be valid
-            # TODO: just swap the empty tile with the tile at the i,j position
+            # just swap the empty tile with the tile at the i,j position
+            empty_i, empty_j = empty_pos
+            empty_tile = game_state[empty_i][empty_j] # actual tile number
+            game_state[empty_i][empty_j] = game_state[i][j]
+            game_state[i][j] = empty_tile
 
+            return game_state
+
+        # not a simulation - carry out the move and update the board
         # Check if the clicked tile is adjacent to empty space
         if (i, j) in self.get_possible_moves():
             self.num_moves += 1
@@ -197,5 +207,5 @@ class SlidePuzzle:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    game = SlidePuzzle(root)
+    game = SlidePuzzle(root, debug=DEBUG)
     root.mainloop()
