@@ -3,6 +3,10 @@ from tkinter import messagebox, filedialog
 from PIL import Image, ImageTk
 import random
 
+# for testing, fix the random state
+SEED = 123
+random.seed(SEED)
+
 class SlidePuzzle:
     def __init__(self, root):
         self.root = root
@@ -153,7 +157,11 @@ class SlidePuzzle:
                     self.buttons[i][j].config(image=self.image_tiles[value])
                 else:
                     self.buttons[i][j].config(image=self.image_tiles[value])
-                    
+        print(f'Total moves: {self.num_moves}')
+        print(f'Current game state:\n{self.current_state}')
+        print(f'Possible moves:\n{self.get_possible_moves()}')
+        print('-'*50)
+   
     def check_win(self):
         # Check if current state matches solved state
         for i in range(self.size):
@@ -173,8 +181,6 @@ class SlidePuzzle:
             self.make_move(move[0],move[1])
             if self.num_moves > 100:
                 break
-
-
 
 if __name__ == "__main__":
     root = tk.Tk()
