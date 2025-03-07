@@ -3,33 +3,36 @@ from tkinter import messagebox, filedialog
 from PIL import Image, ImageTk
 import random
 import copy
-
-# for testing, fix the random state
-# and put the puzzle in debug/verbose mode
-SEED = 123
-random.seed(SEED)
-DEBUG = True
+import utils
+from typing import Literal
+import pprint
 
 class SlidePuzzle:
-    def __init__(self, root:tk.Tk, debug=False):
+    def __init__(self, root:tk.Tk, solve_method:Literal['pc_bfs']='pc_bfs', solve_config:dict={}, seed:int=42, debug=False):
+        # general properties
         self.root = root
         self.root.title("Image Slide Puzzle")
+        self.seed = seed
         self.debug = debug
-        
-        # Game state
+        self.solve_method = solve_method
+        self.solve_config = solve_config
+        self.rand = random.Random(self.seed)
+
+        # UI stuff
         self.size = 3  # 3x3 grid
         self.buttons = []
+        self.tile_size = 135  # Size of each tile in pixels
+        self.image_tiles = []        
+        
+        # Game state
         self.current_state = []
         self.empty_pos = None
-        self.tile_size = 135  # Size of each tile in pixels
-        self.image_tiles = []
+        self.num_moves = 0
         
         # Create UI elements
         # self.load_image()
         self.create_menu()
 
-        self.num_moves = 0
-        
     def create_menu(self):
         # Create a frame for the menu
         menu_frame = tk.Frame(self.root)
@@ -76,8 +79,6 @@ class SlidePuzzle:
                     photo = ImageTk.PhotoImage(tile)
                     self.image_tiles.append(photo)
             
-            
-
             # Create game board
             self.create_board()
             self.shuffle_btn.config(state=tk.NORMAL)
@@ -115,7 +116,7 @@ class SlidePuzzle:
         # Perform random moves
         for _ in range(100):
             possible_moves = self.get_possible_moves()
-            i, j = random.choice(possible_moves)
+            i, j = self.rand.choice(possible_moves)
             self.swap_tiles(i, j)
         self.num_moves = 0
         # Update display
@@ -213,18 +214,80 @@ class SlidePuzzle:
                     return False
         return True
     
-    def solve_game(self):
-        print("left to students")
-        while not self.check_win():
-            possible = self.get_possible_moves()
-            move = random.choice(possible)
-            print(possible)
-            print(move)
-            self.make_move(move[0],move[1])
-            if self.num_moves > 100:
+    def precompute_search_space(self, init_game_state:tuple[tuple], init_empty_pos:tuple[int,int], n_nodes:int|None=None):
+        '''
+        Computes a graph representing every possible unique game state and the moves to reach it
+        '''
+
+        # maps a current game state to a dict
+        # that maps a next game state to the move tuple that lead to it from current game state
+        graph = {}
+
+        # need to be careful to avoid explicitly introducing cycles into the graph
+        # search algo will still need to figure out how to avoid them itself
+
+        empty_pos = init_empty_pos
+        queue = [(init_game_state, [], empty_pos)] # tuple of current game state, moves made to reach current state, and position of empty tile
+        seen_states = set([utils.tuplify_game_state(init_game_state)])
+
+        while queue:
+            #print(f'Game states to check:\n{queue}')
+
+            curr_state, moves_made, empty_pos = queue.pop(0)
+
+            graph[utils.tuplify_game_state(curr_state)] = {'moves_made':moves_made, 'empty_pos':empty_pos}
+            print(f'Unique state nodes in graph: {len(graph)}\n')
+            print('Current game state:')
+            # see https://stackoverflow.com/a/63496125/ (pretty printing the 2d matrix)
+            for i in curr_state:
+                print('   '.join(map(str, i)))
+
+            if n_nodes is not None and len(graph) == n_nodes:
+                # this just indicates that we only want to precompute the first n nodes
+                print(f'\nComputed {n_nodes} state nodes, stopping early\n{'-'*25}')
                 break
 
+            possible_moves = self.get_possible_moves(simulate=True, empty_pos=empty_pos)
+            next_states = {utils.tuplify_game_state(self.make_move(*move, simulate=True, game_state=curr_state, empty_pos=empty_pos, possible_moves=possible_moves)): move for move in possible_moves}
+            print(f'\nNext possible {len(next_states)} game states:\n{pprint.pformat(next_states, indent=4, sort_dicts=False)}\n')
+            unseen_states = set(next_states.keys()) - seen_states
+            print(f'{len(unseen_states)}/{len(next_states)} next possible game states are unseen:\n{unseen_states}')
+
+            for unseen_state in unseen_states:
+                seen_states.add(unseen_state)
+                queue.append(
+                    (
+                        utils.untuplify_game_state(unseen_state), 
+                        moves_made + [next_states[unseen_state]],
+                        next_states[unseen_state]
+                        ))
+            print('-'*25)
+                    
+        # "The 8-puzzle (3x3) has 9!/2 ≈ 181,440 possible states, making complete exploration feasible" per README
+        # each top-level key in our graph is a unique state, aka a node
+        # so in other words our graph (dict) should have 181400 keys
+        if n_nodes is None and len(graph) != 181440:
+            raise Exception(f'Graph should have 181,400 unique state nodes - got {len(graph)} instead')
+                    
+        return graph
+    
+    def solve_game(self):
+        if self.solve_method == 'pc_bfs':
+            self._solve_pc_bfs()
+        else:
+            raise ValueError(f'Unknown/unimplemented solve method {self.solve_method}')
+
+    def _solve_pc_bfs(self):
+        print('Solving game using precomputed BFS method...')
+        search_space = self.precompute_search_space(self.current_state, self.empty_pos, **self.solve_config)
+
 if __name__ == "__main__":
+    # for testing purposes only
+    seed = 123
+    debug = True
+    solve_method = 'pc_bfs'
+    solve_config = {'n_nodes':20}
+
     root = tk.Tk()
-    game = SlidePuzzle(root, debug=DEBUG)
+    game = SlidePuzzle(root, solve_method=solve_method, solve_config=solve_config, seed=seed, debug=debug)
     root.mainloop()
