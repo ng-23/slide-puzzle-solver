@@ -123,6 +123,7 @@ class SlidePuzzle:
         
     def get_possible_moves(self, simulate=False, empty_pos=()):
         moves = []
+
         if simulate:
             i, j = empty_pos
         else:
@@ -136,20 +137,38 @@ class SlidePuzzle:
     
         return moves
         
-    def make_move(self, i, j, simulate=False, game_state=None, empty_pos=()) -> None|list[list[int]]:
+    def make_move(self, i, j, simulate=False, game_state=None, empty_pos=(), possible_moves:list[tuple[int,int]]=[]) -> None|list[list[int]]:
         # simulate making the move, but don't actually change the board
         if simulate:
-            if (i,j) not in self.get_possible_moves(simulate=True, empty_pos=empty_pos):
+            if game_state is None:
+                # no state provided which is necessary for simulation to work properly
+                return None
+            
+            if len(empty_pos) < 2:
+                # need to know empty position for simulation to work properly
+                return None
+            
+            if len(possible_moves) == 0:
+                # possible moves not already supplied so calculate them
+                possible_moves = self.get_possible_moves(simulate=True, empty_pos=empty_pos)
+                
+            # assumes possible moves provided (or calculated) are indeed valid
+            if (i,j) not in possible_moves:
                 return None # invalid move, no valid board
+            
+            # make a copy of the game state - otherwise our modifications will be done in-place
+            # which will mess up subsequent move simulations
+            curr_state = copy.deepcopy(game_state)
                         
             # move must be valid
             # just swap the empty tile with the tile at the i,j position
             empty_i, empty_j = empty_pos
-            empty_tile = game_state[empty_i][empty_j] # actual tile number
-            game_state[empty_i][empty_j] = game_state[i][j]
-            game_state[i][j] = empty_tile
+            empty_tile = curr_state[empty_i][empty_j] # actual empty tile number
+            swap_tile = curr_state[i][j] # actual soon-to-be-swapped tile number
+            curr_state[empty_i][empty_j] = swap_tile
+            curr_state[i][j] = empty_tile
 
-            return game_state
+            return curr_state
 
         # not a simulation - carry out the move and update the board
         # Check if the clicked tile is adjacent to empty space
