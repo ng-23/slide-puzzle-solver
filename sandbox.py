@@ -34,7 +34,7 @@ def precompute_search_space(game_state:tuple[tuple], puzzle:SlidePuzzle, n_nodes
 
         curr_state, moves_made, empty_pos = queue.pop(0)
 
-        graph[tuplify_game_state(curr_state)] = {'moves_made':moves_made, 'empty_pos':empty_pos}
+        graph[tuplify_game_state(curr_state)] = dict()
         print(f'Unique state nodes in graph: {len(graph)}\n')
         print('Current game state:')
         # see https://stackoverflow.com/a/63496125/ (pretty printing the 2d matrix)
@@ -51,13 +51,16 @@ def precompute_search_space(game_state:tuple[tuple], puzzle:SlidePuzzle, n_nodes
         print(f'\nNext possible {len(next_states)} game states:\n{pprint.pformat(next_states, indent=4, sort_dicts=False)}\n')
         unseen_states = set(next_states.keys()) - seen_states
         print(f'{len(unseen_states)}/{len(next_states)} next possible game states are unseen:\n{unseen_states}')
-
+        
         for unseen_state in unseen_states:
+            move_to = next_states[unseen_state]
+            graph[tuplify_game_state(curr_state)][unseen_state] = move_to
+
             seen_states.add(unseen_state)
             queue.append(
                 (
                     untuplify_game_state(unseen_state), 
-                    moves_made + [next_states[unseen_state]],
+                    moves_made + [move_to],
                     next_states[unseen_state]
                     ))
         print('-'*25)
@@ -92,4 +95,5 @@ def main(seed:int=42, debug=False, n_nodes:int|None=20):
 if __name__ == '__main__':
     seed = 123
     debug = True
-    main(seed=seed, debug=debug)
+    n_nodes = 100
+    main(seed=seed, debug=debug, n_nodes=n_nodes)

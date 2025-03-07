@@ -6,9 +6,18 @@ import copy
 import utils
 from typing import Literal
 import pprint
+import search_algos as sa
 
 class SlidePuzzle:
-    def __init__(self, root:tk.Tk, solve_method:Literal['pc_bfs']='pc_bfs', solve_config:dict={}, seed:int=42, debug=False):
+    def __init__(
+            self, 
+            root:tk.Tk, 
+            solve_method:Literal['pc_bfs']='pc_bfs', 
+            solve_config:dict={}, 
+            goal_state:list[list[int]]|None=None, 
+            seed:int=42, 
+            debug:bool=False
+            ):
         # general properties
         self.root = root
         self.root.title("Image Slide Puzzle")
@@ -28,10 +37,22 @@ class SlidePuzzle:
         self.current_state = []
         self.empty_pos = None
         self.num_moves = 0
+        self.goal_state = utils.tuplify_game_state(self.calc_goal_state() if goal_state is None else goal_state)
         
         # Create UI elements
-        # self.load_image()
         self.create_menu()
+
+    def calc_goal_state(self):
+        state = []
+
+        for r in range(self.size):
+            row = []
+            for c in range(self.size):
+                expected = r * self.size + c
+                row.append(expected)
+            state.append(row)
+                    
+        return state
 
     def create_menu(self):
         # Create a frame for the menu
@@ -179,8 +200,9 @@ class SlidePuzzle:
             self.update_display()
             # Check if puzzle is solved
             if self.check_win():
-                messagebox.showinfo("Congratulations!", 
-                                  "You solved the puzzle in " +str(self.num_moves) + " moves!")
+                messagebox.showinfo(
+                    "Congratulations!", "You solved the puzzle in " +str(self.num_moves) + " moves!"
+                    )
                 
     def swap_tiles(self, i, j):
         # Swap values in current_state
@@ -206,13 +228,11 @@ class SlidePuzzle:
             print('-'*50)
    
     def check_win(self):
-        # Check if current state matches solved state
-        for i in range(self.size):
-            for j in range(self.size):
-                expected = i * self.size + j
-                if self.current_state[i][j] != expected:
-                    return False
-        return True
+        '''
+        Check if current game state equals goal state
+        '''
+
+        return self.goal_state == utils.tuplify_game_state(self.current_state)
     
     def precompute_search_space(self, init_game_state:tuple[tuple], init_empty_pos:tuple[int,int], n_nodes:int|None=None):
         '''
@@ -231,38 +251,31 @@ class SlidePuzzle:
         seen_states = set([utils.tuplify_game_state(init_game_state)])
 
         while queue:
-            #print(f'Game states to check:\n{queue}')
-
             curr_state, moves_made, empty_pos = queue.pop(0)
 
-            graph[utils.tuplify_game_state(curr_state)] = {'moves_made':moves_made, 'empty_pos':empty_pos}
-            print(f'Unique state nodes in graph: {len(graph)}\n')
-            print('Current game state:')
-            # see https://stackoverflow.com/a/63496125/ (pretty printing the 2d matrix)
-            for i in curr_state:
-                print('   '.join(map(str, i)))
+            graph[utils.tuplify_game_state(curr_state)] = dict()
 
             if n_nodes is not None and len(graph) == n_nodes:
                 # this just indicates that we only want to precompute the first n nodes
-                print(f'\nComputed {n_nodes} state nodes, stopping early\n{'-'*25}')
                 break
 
             possible_moves = self.get_possible_moves(simulate=True, empty_pos=empty_pos)
             next_states = {utils.tuplify_game_state(self.make_move(*move, simulate=True, game_state=curr_state, empty_pos=empty_pos, possible_moves=possible_moves)): move for move in possible_moves}
-            print(f'\nNext possible {len(next_states)} game states:\n{pprint.pformat(next_states, indent=4, sort_dicts=False)}\n')
             unseen_states = set(next_states.keys()) - seen_states
-            print(f'{len(unseen_states)}/{len(next_states)} next possible game states are unseen:\n{unseen_states}')
 
             for unseen_state in unseen_states:
+                move_to = next_states[unseen_state]
+                graph[utils.tuplify_game_state(curr_state)][unseen_state] = move_to
+
                 seen_states.add(unseen_state)
                 queue.append(
                     (
                         utils.untuplify_game_state(unseen_state), 
-                        moves_made + [next_states[unseen_state]],
+                        moves_made + [move_to],
                         next_states[unseen_state]
-                        ))
-            print('-'*25)
-                    
+                    )
+                )
+
         # "The 8-puzzle (3x3) has 9!/2 ≈ 181,440 possible states, making complete exploration feasible" per README
         # each top-level key in our graph is a unique state, aka a node
         # so in other words our graph (dict) should have 181400 keys
@@ -273,21 +286,35 @@ class SlidePuzzle:
     
     def solve_game(self):
         if self.solve_method == 'pc_bfs':
-            self._solve_pc_bfs()
+            moves_made, num_moves = self._solve_pc_bfs()
+            print(moves_made)
+            print(num_moves)
         else:
             raise ValueError(f'Unknown/unimplemented solve method {self.solve_method}')
 
-    def _solve_pc_bfs(self):
+    def _solve_pc_bfs(self) -> list[tuple[int,int]]:
         print('Solving game using precomputed BFS method...')
+
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, **self.solve_config)
+        moves_made, num_moves = sa.precomputed_bfs(search_space, self.goal_state)
+
+        return moves_made, num_moves
 
 if __name__ == "__main__":
     # for testing purposes only
     seed = 123
     debug = True
     solve_method = 'pc_bfs'
-    solve_config = {'n_nodes':20}
+    solve_config = {'n_nodes':None}
+    # note - w/ seed 123 and 100 nodes, this is the 100th state (node)
+    goal_state = [
+        [0,1,4],
+        [5,3,2],
+        [7,8,6],
+        ]
+    
+    # TODO: this breaks the shuffle method, need to see why...
 
     root = tk.Tk()
-    game = SlidePuzzle(root, solve_method=solve_method, solve_config=solve_config, seed=seed, debug=debug)
+    game = SlidePuzzle(root, solve_method=solve_method, solve_config=solve_config, goal_state=None, seed=seed, debug=debug)
     root.mainloop()
