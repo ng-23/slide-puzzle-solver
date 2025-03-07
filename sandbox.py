@@ -35,7 +35,7 @@ def precompute_search_space(game_state:tuple[tuple], puzzle:SlidePuzzle, n_nodes
         curr_state, moves_made, empty_pos = queue.pop(0)
 
         graph[tuplify_game_state(curr_state)] = {'moves_made':moves_made, 'empty_pos':empty_pos}
-        print(f'Unique nodes in graph: {len(graph)}\n')
+        print(f'Unique state nodes in graph: {len(graph)}\n')
         print('Current game state:')
         # see https://stackoverflow.com/a/63496125/ (pretty printing the 2d matrix)
         for i in curr_state:
@@ -43,12 +43,12 @@ def precompute_search_space(game_state:tuple[tuple], puzzle:SlidePuzzle, n_nodes
 
         if n_nodes is not None and len(graph) == n_nodes:
             # this just indicates that we only want to precompute the first n nodes
-            print('-'*25)
+            print(f'\nComputed {n_nodes} state nodes, stopping early\n{'-'*25}')
             break
 
         possible_moves = puzzle.get_possible_moves(simulate=True, empty_pos=empty_pos)
         next_states = {tuplify_game_state(puzzle.make_move(*move, simulate=True, game_state=curr_state, empty_pos=empty_pos, possible_moves=possible_moves)): move for move in possible_moves}
-        print(f'\nNext possible {len(next_states)} game states:\n{next_states}\n')
+        print(f'\nNext possible {len(next_states)} game states:\n{pprint.pformat(next_states, indent=4, sort_dicts=False)}\n')
         unseen_states = set(next_states.keys()) - seen_states
         print(f'{len(unseen_states)}/{len(next_states)} next possible game states are unseen:\n{unseen_states}')
 
@@ -70,12 +70,11 @@ def precompute_search_space(game_state:tuple[tuple], puzzle:SlidePuzzle, n_nodes
                 
     return graph
 
-def main():
-    puzzle = SlidePuzzle(tk.Tk(), debug=False)
+def main(seed:int=42, debug=False, n_nodes:int|None=20):
+    puzzle = SlidePuzzle(tk.Tk(), seed=seed, debug=debug)
 
     # get initial game state
-    game_state = puzzle.current_state
-    print(f'Initial game state:\n{game_state}')
+    init_game_state = puzzle.current_state
 
     # ultimately goal is to represent search space as a graph
     # each node is the game state, each edge is a possible move
@@ -83,12 +82,14 @@ def main():
     # only issue is that lists are not hashable - but tuples are (immutable)
 
     # now we have enough info to start building the search space (graph)
-    # i see 2 ways of doing this - precomputed and on-the-fly (not sure if OTF would work yet though...)
+    # i see 2 ways of doing this - precomputed and on-the-fly
     # precomputation - build a dictionary of every possible move and resulting state, then apply a search algo to it
     # on-the-fly - apply the search algo to initial state/moves, then at each iter compute the next possible moves and resulting states
     # let's start by doing precomputation, since that's probably easier (though it'll eat up more RAM)
-    search_space = precompute_search_space(game_state, puzzle, n_nodes=None)
+    search_space = precompute_search_space(init_game_state, puzzle, n_nodes=n_nodes)
     print(search_space)
 
 if __name__ == '__main__':
-    main()
+    seed = 123
+    debug = True
+    main(seed=seed, debug=debug)
