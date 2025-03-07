@@ -4,6 +4,7 @@ Script for experimentation
 
 from SlidePuzzle import SlidePuzzle
 import tkinter as tk
+import pprint
 
 def tuplify_game_state(game_state:list[list]):
     '''
@@ -15,7 +16,7 @@ def tuplify_game_state(game_state:list[list]):
 def untuplify_game_state(game_states:tuple[tuple]):
     return list([list(row) for row in game_states])
 
-def precompute_graph(game_state:tuple[tuple], puzzle:SlidePuzzle):
+def precompute_search_space(game_state:tuple[tuple], puzzle:SlidePuzzle, n_nodes:int|None=None):
 
     # maps a current game state to a dict
     # that maps a next game state to the move tuple that lead to it from current game state
@@ -29,29 +30,44 @@ def precompute_graph(game_state:tuple[tuple], puzzle:SlidePuzzle):
     seen_states = set([tuplify_game_state(game_state)])
 
     while queue:
-        print(f'Game states to check:\n{queue}')
+        #print(f'Game states to check:\n{queue}')
 
         curr_state, moves_made, empty_pos = queue.pop(0)
 
         graph[tuplify_game_state(curr_state)] = {'moves_made':moves_made, 'empty_pos':empty_pos}
-        print(f'Unique nodes in graph: {len(graph)}')
+        print(f'Unique nodes in graph: {len(graph)}\n')
+        print('Current game state:')
+        # see https://stackoverflow.com/a/63496125/ (pretty printing the 2d matrix)
+        for i in curr_state:
+            print('   '.join(map(str, i)))
 
-        next_states = {tuplify_game_state(puzzle.make_move(*move, simulate=True, game_state=curr_state, empty_pos=empty_pos)): move for move in puzzle.get_possible_moves(simulate=True, empty_pos=empty_pos)}
-        print(f'Next possible game states:\n{next_states}')
-
-        for next_state in next_states:
-            if next_state not in seen_states:
-                seen_states.add(next_state)
-                queue.append(
-                    (
-                        untuplify_game_state(next_state), 
-                        moves_made + [next_states[next_state]],
-                        next_states[next_state]
-                        ))
-                
-        if len(graph) == 3:
+        if n_nodes is not None and len(graph) == n_nodes:
+            # this just indicates that we only want to precompute the first n nodes
+            print('-'*25)
             break
 
+        possible_moves = puzzle.get_possible_moves(simulate=True, empty_pos=empty_pos)
+        next_states = {tuplify_game_state(puzzle.make_move(*move, simulate=True, game_state=curr_state, empty_pos=empty_pos, possible_moves=possible_moves)): move for move in possible_moves}
+        print(f'\nNext possible {len(next_states)} game states:\n{next_states}\n')
+        unseen_states = set(next_states.keys()) - seen_states
+        print(f'{len(unseen_states)}/{len(next_states)} next possible game states are unseen:\n{unseen_states}')
+
+        for unseen_state in unseen_states:
+            seen_states.add(unseen_state)
+            queue.append(
+                (
+                    untuplify_game_state(unseen_state), 
+                    moves_made + [next_states[unseen_state]],
+                    next_states[unseen_state]
+                    ))
+        print('-'*25)
+                
+    # "The 8-puzzle (3x3) has 9!/2 ≈ 181,440 possible states, making complete exploration feasible" per README
+    # each top-level key in our graph is a unique state, aka a node
+    # so in other words our graph (dict) should have 181400 keys
+    if n_nodes is None and len(graph) != 181440:
+        raise Exception(f'Graph should have 181,400 unique state nodes - got {len(graph)} instead')
+                
     return graph
 
 def main():
@@ -71,7 +87,7 @@ def main():
     # precomputation - build a dictionary of every possible move and resulting state, then apply a search algo to it
     # on-the-fly - apply the search algo to initial state/moves, then at each iter compute the next possible moves and resulting states
     # let's start by doing precomputation, since that's probably easier (though it'll eat up more RAM)
-    search_space = precompute_graph(game_state, puzzle)
+    search_space = precompute_search_space(game_state, puzzle, n_nodes=None)
     print(search_space)
 
 if __name__ == '__main__':
