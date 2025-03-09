@@ -21,7 +21,7 @@ def get_args_parser():
     parser.add_argument(
         '--solve-algo', 
         type=str, 
-        choices=['pc_bfs'], 
+        choices=['pc_bfs','pc_dfs'], 
         default='pc_bfs', 
         help='Solve algorithm to use',
         )

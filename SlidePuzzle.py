@@ -12,7 +12,7 @@ class SlidePuzzle:
     def __init__(
             self, 
             root:tk.Tk, 
-            solve_algo:Literal['pc_bfs']='pc_bfs', 
+            solve_algo:Literal['pc_bfs','pc_dfs']='pc_bfs', 
             solve_config:dict={}, 
             goal_state:list[list[int]]|None=None, 
             seed:int=42, 
@@ -284,8 +284,13 @@ class SlidePuzzle:
     def solve_game(self):
         moves_made, num_moves = [], 0
 
+        if self.debug:
+            print(f'Solving game using {self.solve_algo} algorithm...')
+
         if self.solve_algo == 'pc_bfs':
-            moves_made, num_moves = self._solve_pc_bfs()
+            moves_made, num_moves = self.solve_pc_bfs()
+        elif self.solve_algo == 'pc_dfs':
+            moves_made, num_moves = self.solve_pc_dfs()
         else:
             raise ValueError(f'Unknown/unimplemented solve algorithm {self.solve_algo}')
         
@@ -293,13 +298,24 @@ class SlidePuzzle:
 
         for move in moves_made:
             self.make_move(*move)
-
-    def _solve_pc_bfs(self) -> list[tuple[int,int]]:
-        if self.debug:
-            print('Solving game using precomputed BFS algorithm...')
+            
+    def solve_pc_bfs(self):
+        '''
+        Solve the puzzle using a BFS over a precomputed search space graph
+        '''
 
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, **self.solve_config)
         moves_made, num_moves = sa.precomputed_bfs(search_space, self.goal_state)
+
+        return moves_made, num_moves
+    
+    def solve_pc_dfs(self):
+        '''
+        Solve the puzzle using a DFS over a precomputed search space graph
+        '''
+
+        search_space = self.precompute_search_space(self.current_state, self.empty_pos, **self.solve_config)
+        moves_made, num_moves = sa.precomputed_dfs(search_space, self.goal_state)
 
         return moves_made, num_moves
 
