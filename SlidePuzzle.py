@@ -285,12 +285,17 @@ class SlidePuzzle:
         return graph
     
     def solve_game(self):
+        moves_made, num_moves = [], 0
+
         if self.solve_method == 'pc_bfs':
             moves_made, num_moves = self._solve_pc_bfs()
-            print(moves_made)
-            print(num_moves)
         else:
             raise ValueError(f'Unknown/unimplemented solve method {self.solve_method}')
+        
+        print(f'Correct sequence of {num_moves} moves:\n{moves_made}')
+
+        for move in moves_made:
+            self.make_move(*move)
 
     def _solve_pc_bfs(self) -> list[tuple[int,int]]:
         print('Solving game using precomputed BFS method...')
@@ -313,8 +318,6 @@ if __name__ == "__main__":
         [7,8,6],
         ]
     
-    # TODO: this breaks the shuffle method, need to see why...
-
     root = tk.Tk()
     game = SlidePuzzle(root, solve_method=solve_method, solve_config=solve_config, goal_state=None, seed=seed, debug=debug)
     root.mainloop()
