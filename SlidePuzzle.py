@@ -12,7 +12,7 @@ class SlidePuzzle:
     def __init__(
             self, 
             root:tk.Tk, 
-            solve_method:Literal['pc_bfs']='pc_bfs', 
+            solve_algo:Literal['pc_bfs']='pc_bfs', 
             solve_config:dict={}, 
             goal_state:list[list[int]]|None=None, 
             seed:int=42, 
@@ -23,7 +23,7 @@ class SlidePuzzle:
         self.root.title("Image Slide Puzzle")
         self.seed = seed
         self.debug = debug
-        self.solve_method = solve_method
+        self.solve_algo = solve_algo
         self.solve_config = solve_config
         self.rand = random.Random(self.seed)
 
@@ -162,12 +162,9 @@ class SlidePuzzle:
     def make_move(self, i, j, simulate=False, game_state=None, empty_pos=(), possible_moves:list[tuple[int,int]]=[]) -> None|list[list[int]]:
         # simulate making the move, but don't actually change the board
         if simulate:
-            if game_state is None:
+            if game_state is None or len(empty_pos) < 2:
                 # no state provided which is necessary for simulation to work properly
-                return None
-            
-            if len(empty_pos) < 2:
-                # need to know empty position for simulation to work properly
+                # also need to know empty position for simulation to work properly
                 return None
             
             if len(possible_moves) == 0:
@@ -201,7 +198,7 @@ class SlidePuzzle:
             # Check if puzzle is solved
             if self.check_win():
                 messagebox.showinfo(
-                    "Congratulations!", "You solved the puzzle in " +str(self.num_moves) + " moves!"
+                    "Congratulations!", "You solved the puzzle in " + str(self.num_moves) + " moves!"
                     )
                 
     def swap_tiles(self, i, j):
@@ -287,10 +284,10 @@ class SlidePuzzle:
     def solve_game(self):
         moves_made, num_moves = [], 0
 
-        if self.solve_method == 'pc_bfs':
+        if self.solve_algo == 'pc_bfs':
             moves_made, num_moves = self._solve_pc_bfs()
         else:
-            raise ValueError(f'Unknown/unimplemented solve method {self.solve_method}')
+            raise ValueError(f'Unknown/unimplemented solve algorithm {self.solve_algo}')
         
         print(f'Correct sequence of {num_moves} moves:\n{moves_made}')
 
@@ -298,7 +295,8 @@ class SlidePuzzle:
             self.make_move(*move)
 
     def _solve_pc_bfs(self) -> list[tuple[int,int]]:
-        print('Solving game using precomputed BFS method...')
+        if self.debug:
+            print('Solving game using precomputed BFS algorithm...')
 
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, **self.solve_config)
         moves_made, num_moves = sa.precomputed_bfs(search_space, self.goal_state)
@@ -319,5 +317,5 @@ if __name__ == "__main__":
         ]
     
     root = tk.Tk()
-    game = SlidePuzzle(root, solve_method=solve_method, solve_config=solve_config, goal_state=None, seed=seed, debug=debug)
+    game = SlidePuzzle(root, solve_algo=solve_method, solve_config=solve_config, goal_state=None, seed=seed, debug=debug)
     root.mainloop()
