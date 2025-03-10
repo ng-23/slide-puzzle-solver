@@ -107,8 +107,6 @@ class UniqueGrid():
             self.space = prev_space
             raise e
 
-        return prev_space
-
     def __str__(self):
         s = ''
 
@@ -149,4 +147,9 @@ if __name__ == '__main__':
     new_pos = (1,1)
     g.swap(old_pos, new_pos)
     print(g)
-    
+
+    g2 = copy.deepcopy(g)
+    g2.insert(new_pos, 123)
+
+    print(f'Original grid:\n{str(g)}')
+    print(f'Copied grid:\n{g2}')
