@@ -31,7 +31,8 @@ class SlidePuzzle:
         self.size = 3  # 3x3 grid
         self.buttons = []
         self.tile_size = 135  # Size of each tile in pixels
-        self.image_tiles = []        
+        self.image_tiles = []      
+        self.disable_shuffle = True if goal_state is not None else False  
         
         # Game state
         self.current_state = []
@@ -102,7 +103,7 @@ class SlidePuzzle:
             
             # Create game board
             self.create_board()
-            self.shuffle_btn.config(state=tk.NORMAL)
+            self.shuffle_btn.config(state=tk.NORMAL if not self.disable_shuffle else tk.DISABLED)
             
     def create_board(self):
         # Create or clear game frame
@@ -120,7 +121,7 @@ class SlidePuzzle:
                 # Create button with command for ALL tiles
                 btn = tk.Button(self.game_frame,
                             image=self.image_tiles[number],
-                            command=lambda x=i, y=j: self.make_move(x, y))
+                            command=lambda x=i, y=j: self.make_move((x,y), self.current_state, self.empty_pos, simulate=False))
                 btn.grid(row=i, column=j, padx=1, pady=1)
                 row.append(btn)
             self.buttons.append(row)
@@ -136,20 +137,17 @@ class SlidePuzzle:
     def shuffle_board(self):
         # Perform random moves
         for _ in range(100):
-            possible_moves = self.get_possible_moves()
+            possible_moves = self.get_possible_moves(self.empty_pos)
             i, j = self.rand.choice(possible_moves)
-            self.swap_tiles(i, j)
+            self.swap_tiles((i,j), self.current_state, self.empty_pos, simulate=False)
         self.num_moves = 0
         # Update display
         self.update_display()
         
-    def get_possible_moves(self, simulate=False, empty_pos=()):
+    def get_possible_moves(self, empty_pos):
         moves = []
 
-        if simulate:
-            i, j = empty_pos
-        else:
-            i, j = self.empty_pos
+        i, j = empty_pos
             
         # Check all adjacent positions
         for di, dj in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
@@ -159,55 +157,42 @@ class SlidePuzzle:
     
         return moves
         
-    def make_move(self, i, j, simulate=False, game_state=None, empty_pos=(), possible_moves:list[tuple[int,int]]=[]) -> None|list[list[int]]:
-        # simulate making the move, but don't actually change the board
-        if simulate:
-            if game_state is None or len(empty_pos) < 2:
-                # no state provided which is necessary for simulation to work properly
-                # also need to know empty position for simulation to work properly
-                return None
-            
-            if len(possible_moves) == 0:
-                # possible moves not already supplied so calculate them
-                possible_moves = self.get_possible_moves(simulate=True, empty_pos=empty_pos)
-                
-            # assumes possible moves provided (or calculated) are indeed valid
-            if (i,j) not in possible_moves:
-                return None # invalid move, no valid board
-            
-            # make a copy of the game state - otherwise our modifications will be done in-place
-            # which will mess up subsequent move simulations
-            curr_state = copy.deepcopy(game_state)
-                        
-            # move must be valid
-            # just swap the empty tile with the tile at the i,j position
-            empty_i, empty_j = empty_pos
-            empty_tile = curr_state[empty_i][empty_j] # actual empty tile number
-            swap_tile = curr_state[i][j] # actual soon-to-be-swapped tile number
-            curr_state[empty_i][empty_j] = swap_tile
-            curr_state[i][j] = empty_tile
-
-            return curr_state
-
-        # not a simulation - carry out the move and update the board
-        # Check if the clicked tile is adjacent to empty space
-        if (i, j) in self.get_possible_moves():
-            self.num_moves += 1
-            self.swap_tiles(i, j)
-            self.update_display()
-            # Check if puzzle is solved
-            if self.check_win():
-                messagebox.showinfo(
-                    "Congratulations!", "You solved the puzzle in " + str(self.num_moves) + " moves!"
-                    )
-                
-    def swap_tiles(self, i, j):
-        # Swap values in current_state
-        empty_i, empty_j = self.empty_pos
-        self.current_state[empty_i][empty_j] = self.current_state[i][j]
-        self.current_state[i][j] = self.size * self.size - 1
-        self.empty_pos = (i, j)
+    def make_move(self, new_pos, game_state, empty_pos, possible_moves=[], simulate=False):
+        i, j = new_pos
+        possible_moves = possible_moves if possible_moves else self.get_possible_moves(empty_pos)
+        # make a copy of the game state - otherwise our modifications will be done in-place
+        # which will mess up subsequent moves
+        curr_state = copy.deepcopy(game_state)
         
+        if (i,j) in possible_moves:
+            self.swap_tiles((i,j), curr_state, empty_pos, simulate=simulate)
+
+            if not simulate:
+                self.current_state = curr_state
+                self.empty_pos = (i,j)
+                self.num_moves += 1
+
+                self.update_display()
+                if self.check_solved():
+                    messagebox.showinfo(
+                        "Congratulations!", "You solved the puzzle in " + str(self.num_moves) + " moves!"
+                        )
+                    
+        return curr_state
+                
+    def swap_tiles(self, swap_pos, game_state, empty_pos, simulate=False):
+        empty_i, empty_j = empty_pos
+        swap_i, swap_j = swap_pos
+        empty_val, swap_val = game_state[empty_i][empty_j], game_state[swap_i][swap_j]
+
+        game_state[empty_i][empty_j] = swap_val
+        game_state[swap_i][swap_j] = empty_val
+
+        if not simulate:
+            self.empty_pos = (swap_i,swap_j)
+
+        return (swap_i,swap_j) # returns the new empty tile position
+
     def update_display(self):
         # Update button images based on current_state
         for i in range(self.size):
@@ -221,10 +206,11 @@ class SlidePuzzle:
         if self.debug:
             print(f'Total moves: {self.num_moves}')
             print(f'Current game state:\n{self.current_state}')
-            print(f'Possible moves:\n{self.get_possible_moves()}')
+            print(f'Empty position:\n{self.empty_pos}')
+            print(f'Possible moves:\n{self.get_possible_moves(self.empty_pos)}')
             print('-'*50)
    
-    def check_win(self):
+    def check_solved(self):
         '''
         Check if current game state equals goal state
         '''
@@ -256,8 +242,8 @@ class SlidePuzzle:
                 # this just indicates that we only want to precompute the first n nodes
                 break
 
-            possible_moves = self.get_possible_moves(simulate=True, empty_pos=empty_pos)
-            next_states = {utils.tuplify_2dmatrix(self.make_move(*move, simulate=True, game_state=curr_state, empty_pos=empty_pos, possible_moves=possible_moves)): move for move in possible_moves}
+            possible_moves = self.get_possible_moves(empty_pos=empty_pos)
+            next_states = {utils.tuplify_2dmatrix(self.make_move(move, curr_state, empty_pos, possible_moves=possible_moves, simulate=True)): move for move in possible_moves}
             unseen_states = set(next_states.keys()) - seen_states
 
             for unseen_state in unseen_states:
@@ -294,10 +280,11 @@ class SlidePuzzle:
         else:
             raise ValueError(f'Unknown/unimplemented solve algorithm {self.solve_algo}')
         
-        print(f'Correct sequence of {num_moves} moves:\n{moves_made}')
+        if self.debug:
+            print(f'Correct sequence of {num_moves} moves:\n{moves_made}')
 
         for move in moves_made:
-            self.make_move(*move)
+            self.make_move(move, self.current_state, self.empty_pos, simulate=False)
             
     def solve_pc_bfs(self):
         '''
@@ -333,5 +320,5 @@ if __name__ == "__main__":
         ]
     
     root = tk.Tk()
-    game = SlidePuzzle(root, solve_algo=solve_method, solve_config=solve_config, goal_state=goal_state, seed=seed, debug=debug)
+    game = SlidePuzzle(root, solve_algo=solve_method, solve_config=solve_config, goal_state=None, seed=seed, debug=debug)
     root.mainloop()
