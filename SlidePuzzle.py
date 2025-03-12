@@ -1,12 +1,12 @@
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import messagebox
 from PIL import Image, ImageTk
 import random
 import copy
 import utils
 from typing import Literal
-import pprint
 import search_algos as sa
+import pprint
 
 class SlidePuzzle:
     def __init__(
@@ -42,6 +42,8 @@ class SlidePuzzle:
         
         # Create UI elements
         self.create_menu()
+        self.create_board()
+        self.shuffle_board()
 
     def calc_goal_state(self):
         state = []
@@ -71,7 +73,6 @@ class SlidePuzzle:
                                    state=tk.DISABLED)
         self.shuffle_btn.pack(side=tk.LEFT, padx=5)
         self.load_image()
-        self.shuffle_board()
         
     def load_image(self):
         # Open file dialog to choose an image
@@ -101,10 +102,6 @@ class SlidePuzzle:
                     photo = ImageTk.PhotoImage(tile)
                     self.image_tiles.append(photo)
             
-            # Create game board
-            self.create_board()
-            self.shuffle_btn.config(state=tk.NORMAL if not self.disable_shuffle else tk.DISABLED)
-            
     def create_board(self):
         # Create or clear game frame
         if hasattr(self, 'game_frame'):
@@ -133,6 +130,25 @@ class SlidePuzzle:
         
         # Set the empty position to the bottom right
         self.empty_pos = (self.size - 1, self.size - 1)
+
+        self.shuffle_btn.config(state=tk.NORMAL if not self.disable_shuffle else tk.DISABLED)
+
+    def update_display(self):
+        # Update button images based on current_state
+        for i in range(self.size):
+            for j in range(self.size):
+                value = self.current_state[i][j]
+                if value == self.size * self.size - 1:
+                    # This is the empty tile
+                    self.buttons[i][j].config(image=self.image_tiles[value])
+                else:
+                    self.buttons[i][j].config(image=self.image_tiles[value])
+        if self.debug:
+            print(f'Total moves: {self.num_moves}')
+            print(f'Current game state:\n{self.current_state}')
+            print(f'Empty position:\n{self.empty_pos}')
+            print(f'Possible moves:\n{self.get_possible_moves(self.empty_pos)}')
+            print('-'*50)
             
     def shuffle_board(self):
         # Perform random moves
@@ -192,23 +208,6 @@ class SlidePuzzle:
             self.empty_pos = (swap_i,swap_j)
 
         return (swap_i,swap_j) # returns the new empty tile position
-
-    def update_display(self):
-        # Update button images based on current_state
-        for i in range(self.size):
-            for j in range(self.size):
-                value = self.current_state[i][j]
-                if value == self.size * self.size - 1:
-                    # This is the empty tile
-                    self.buttons[i][j].config(image=self.image_tiles[value])
-                else:
-                    self.buttons[i][j].config(image=self.image_tiles[value])
-        if self.debug:
-            print(f'Total moves: {self.num_moves}')
-            print(f'Current game state:\n{self.current_state}')
-            print(f'Empty position:\n{self.empty_pos}')
-            print(f'Possible moves:\n{self.get_possible_moves(self.empty_pos)}')
-            print('-'*50)
    
     def check_solved(self):
         '''
@@ -217,7 +216,27 @@ class SlidePuzzle:
 
         return self.goal_state == utils.tuplify_2dmatrix(self.current_state)
     
-    def precompute_search_space(self, init_game_state:tuple[tuple], init_empty_pos:tuple[int,int], n_nodes:int|None=None):
+    def calc_total_manhattan_dist(self, game_state, goal_state, goal_vals_map={}):
+        '''
+        Calculate the total Manhattan Distance between tiles in current `game_state` and final `goal_state`
+        '''
+
+        dist = 0
+
+        if not goal_vals_map:
+            # create dict mapping tile vals in goal state to their row,column positions for faster lookups
+            goal_vals_map = utils.get_vals_map(goal_state, self.size)
+            
+        for r in range(self.size):
+            for c in range(self.size):
+                curr_val = game_state[r][c]
+                goal_val_pos = goal_vals_map[curr_val]
+
+                dist += utils.calc_2dmanhattan_dist((r,c), goal_val_pos)
+
+        return dist
+    
+    def precompute_search_space(self, init_game_state:tuple[tuple], init_empty_pos:tuple[int,int], goal_state, cost_func:str='', n_nodes:int|None=None):
         '''
         Computes a graph representing every possible unique game state and the moves to reach it
         '''
@@ -233,6 +252,9 @@ class SlidePuzzle:
         queue = [(init_game_state, [], empty_pos)] # tuple of current game state, moves made to reach current state, and position of empty tile
         seen_states = set([utils.tuplify_2dmatrix(init_game_state)])
 
+        if cost_func == 'manhattan_dist':
+            goal_vals_map = utils.get_vals_map(goal_state, self.size)
+
         while queue:
             curr_state, moves_made, empty_pos = queue.pop(0)
 
@@ -247,14 +269,18 @@ class SlidePuzzle:
             unseen_states = set(next_states.keys()) - seen_states
 
             for unseen_state in unseen_states:
-                move_to = next_states[unseen_state]
-                graph[utils.tuplify_2dmatrix(curr_state)][unseen_state] = move_to
+                state_data = next_states[unseen_state]
+
+                if cost_func == 'manhattan_dist':
+                    state_data = state_data + tuple([self.calc_total_manhattan_dist(unseen_state, goal_state, goal_vals_map=goal_vals_map)])
+
+                graph[utils.tuplify_2dmatrix(curr_state)][unseen_state] = state_data
 
                 seen_states.add(unseen_state)
                 queue.append(
                     (
                         utils.listify_2dmatrix(unseen_state), 
-                        moves_made + [move_to],
+                        moves_made + [next_states[unseen_state]],
                         next_states[unseen_state]
                     )
                 )
@@ -271,52 +297,66 @@ class SlidePuzzle:
         moves_made, num_moves = [], 0
 
         if self.debug:
-            print(f'Solving game using {self.solve_algo} algorithm...')
+            print(f'Solve algorithm: {self.solve_algo}')
 
         if self.solve_algo == 'pc_bfs':
-            moves_made, num_moves = self.solve_pc_bfs()
+            moves_made, num_moves, reached_goal = self.solve_pc_bfs()
         elif self.solve_algo == 'pc_dfs':
-            moves_made, num_moves = self.solve_pc_dfs()
+            moves_made, num_moves, reached_goal = self.solve_pc_dfs()
+        elif self.solve_algo == 'pc_gbfs':
+            moves_made, num_moves, reached_goal = self.solve_pc_gbfs()
         else:
             raise ValueError(f'Unknown/unimplemented solve algorithm {self.solve_algo}')
         
         if self.debug:
-            print(f'Correct sequence of {num_moves} moves:\n{moves_made}')
+            print(f'Reached goal state: {reached_goal}')
+            print(f'Made {num_moves} moves:\n{moves_made}')
+            print('-'*50)
 
-        for move in moves_made:
-            self.make_move(move, self.current_state, self.empty_pos, simulate=False)
+        if reached_goal:
+            for move in moves_made:
+                self.make_move(move, self.current_state, self.empty_pos, simulate=False)
             
     def solve_pc_bfs(self):
         '''
         Solve the puzzle using a BFS over a precomputed search space graph
         '''
 
-        search_space = self.precompute_search_space(self.current_state, self.empty_pos, **self.solve_config)
-        moves_made, num_moves = sa.precomputed_bfs(search_space, self.goal_state)
-
-        return moves_made, num_moves
-    
+        search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
+        return sa.precomputed_bfs(search_space, self.goal_state)
+ 
     def solve_pc_dfs(self):
         '''
         Solve the puzzle using a DFS over a precomputed search space graph
         '''
 
-        search_space = self.precompute_search_space(self.current_state, self.empty_pos, **self.solve_config)
-        moves_made, num_moves = sa.precomputed_dfs(search_space, self.goal_state)
+        search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
 
-        return moves_made, num_moves
+        return sa.precomputed_dfs(search_space, self.goal_state)
+    
+    def solve_pc_gbfs(self):
+        '''
+        Solve the puzzle using a GBFS over a precomputed search space graph w/ cost
+        '''
+
+        if 'cost_func' not in self.solve_config:
+            self.solve_config['cost_func'] = 'manhattan_dist'
+
+        search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
+
+        return sa.precomputed_gbfs(search_space, self.goal_state)
 
 if __name__ == "__main__":
     # for testing purposes only
     seed = 123
     debug = True
-    solve_method = 'pc_bfs'
+    solve_method = 'pc_gbfs'
     solve_config = {'n_nodes':None}
-    # note - w/ seed 123 and 100 nodes, this is the 100th state (node)
+    # TODO: this doesn't work, sometimes crashes if n_nodes is set too low
     goal_state = [
         [0,1,4],
-        [5,3,2],
-        [7,8,6],
+        [3,6,8],
+        [5,2,7],
         ]
     
     root = tk.Tk()

@@ -15,3 +15,23 @@ def listify_2dmatrix(matrix):
     '''
 
     return list([list(row) for row in matrix])
+
+def get_vals_map(matrix, size):
+    vals_map = {}
+
+    for r in range(size):
+        for c in range(size):
+            val = matrix[r][c]
+            if val in vals_map:
+                raise ValueError(f'Unique value constraint failed - value {val} is already at position {vals_map[val]} in matrix')
+            vals_map[val] = (r,c)
+    return vals_map
+
+def calc_2dmanhattan_dist(a:tuple[int,int], b:tuple[int,int]):
+    '''
+    Calculate the 2D Manhattan Distance between 2 points
+
+    Formula: D = |x1-x2| + |y1-y2|
+    '''
+
+    return abs(a[0]-b[0]) + abs(a[1]-b[1])
