@@ -6,7 +6,7 @@ import copy
 import utils
 from typing import Literal
 import search_algos as sa
-import pprint
+import time
 
 class SlidePuzzle:
     def __init__(
@@ -300,16 +300,17 @@ class SlidePuzzle:
             print(f'Solve algorithm: {self.solve_algo}')
 
         if self.solve_algo == 'pc_bfs':
-            moves_made, num_moves, reached_goal = self.solve_pc_bfs()
+            moves_made, num_moves, reached_goal, solve_time = self.solve_pc_bfs()
         elif self.solve_algo == 'pc_dfs':
-            moves_made, num_moves, reached_goal = self.solve_pc_dfs()
+            moves_made, num_moves, reached_goal, solve_time = self.solve_pc_dfs()
         elif self.solve_algo == 'pc_gbfs':
-            moves_made, num_moves, reached_goal = self.solve_pc_gbfs()
+            moves_made, num_moves, reached_goal,solve_time = self.solve_pc_gbfs()
         else:
             raise ValueError(f'Unknown/unimplemented solve algorithm {self.solve_algo}')
         
         if self.debug:
             print(f'Reached goal state: {reached_goal}')
+            print(f'Total time: {solve_time} seconds')
             print(f'Made {num_moves} moves:\n{moves_made}')
             print('-'*50)
 
@@ -322,17 +323,22 @@ class SlidePuzzle:
         Solve the puzzle using a BFS over a precomputed search space graph
         '''
 
+        start = time.time()
+        
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
-        return sa.precomputed_bfs(search_space, self.goal_state)
+        
+        return *sa.precomputed_bfs(search_space, self.goal_state), time.time()-start
  
     def solve_pc_dfs(self):
         '''
         Solve the puzzle using a DFS over a precomputed search space graph
         '''
 
+        start = time.time()
+        
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
-
-        return sa.precomputed_dfs(search_space, self.goal_state)
+        
+        return *sa.precomputed_dfs(search_space, self.goal_state), time.time()-start
     
     def solve_pc_gbfs(self):
         '''
@@ -342,15 +348,17 @@ class SlidePuzzle:
         if 'cost_func' not in self.solve_config:
             self.solve_config['cost_func'] = 'manhattan_dist'
 
+        start = time.time()
+        
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
-
-        return sa.precomputed_gbfs(search_space, self.goal_state)
+        
+        return *sa.precomputed_gbfs(search_space, self.goal_state), time.time()-start
 
 if __name__ == "__main__":
     # for testing purposes only
     seed = 123
     debug = True
-    solve_method = 'pc_gbfs'
+    solve_method = 'pc_bfs'
     solve_config = {'n_nodes':None}
     # TODO: this doesn't work, sometimes crashes if n_nodes is set too low
     goal_state = [
