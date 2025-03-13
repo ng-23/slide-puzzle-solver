@@ -317,6 +317,8 @@ class SlidePuzzle:
         if reached_goal:
             for move in moves_made:
                 self.make_move(move, self.current_state, self.empty_pos, simulate=False)
+
+        return reached_goal, solve_time, moves_made, num_moves
             
     def solve_pc_bfs(self):
         '''
@@ -358,7 +360,7 @@ if __name__ == "__main__":
     # for testing purposes only
     seed = 123
     debug = True
-    solve_method = 'pc_bfs'
+    solve_method = 'pc_gbfs'
     solve_config = {'n_nodes':None}
     # TODO: this doesn't work, sometimes crashes if n_nodes is set too low
     goal_state = [

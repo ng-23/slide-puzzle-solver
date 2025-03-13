@@ -4,9 +4,9 @@ Testing script
 
 from SlidePuzzle import SlidePuzzle
 import tkinter as tk
-import utils
 import argparse
 import json
+import os
 
 def get_args_parser():
     parser = argparse.ArgumentParser(prog='Puzzle Solver', description='Solve 3x3 tile puzzle')
@@ -21,7 +21,7 @@ def get_args_parser():
     parser.add_argument(
         '--solve-algo', 
         type=str, 
-        choices=['pc_bfs','pc_dfs'], 
+        choices=['pc_bfs','pc_dfs','pc_gbfs'], 
         default='pc_bfs', 
         help='Solve algorithm to use',
         )
@@ -59,6 +59,22 @@ def main(args:argparse.Namespace):
         seed=args.seed, 
         debug=args.debug_mode,
         )
+    
+    reached_goal, solve_time, moves_made, num_moves = puzzle.solve_game()
+
+    res = {
+        'solved': reached_goal,
+        'solve_time': solve_time,
+        'moves': moves_made,
+        'num_moves': num_moves,
+    }
+     
+    output_dir = args.output_dir
+    if output_dir:
+        os.makedirs(output_dir)
+    output_path = os.path.join(output_dir, f'puzzle{args.seed}-{args.solve_algo}.json')
+    with open(output_path, mode='w') as f:
+        json.dump(res, f, indent=4)
     
     root.mainloop()
 

@@ -105,7 +105,11 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
     - f(n) is the cost function
     - h(n) is the heuristic function, which generally estimates the "cost" of going from the current state to the goal state
 
+    See https://en.wikipedia.org/wiki/Best-first_search
+
     See https://www.codecademy.com/resources/docs/ai/search-algorithms/greedy-best-first-search
+
+    See https://stackoverflow.com/questions/8374308/is-the-greedy-best-first-search-algorithm-different-from-the-best-first-search-a
     '''
 
     cost_direction = 'min'
@@ -129,29 +133,13 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
             break
         
         next_states = graph[curr_state].keys()
-        best_next_stack, best_next_cost = [], float('inf') if cost_direction == 'min' else float('-inf')
-        for next_state in next_states:
-            next_cost = graph[curr_state][next_state][-1]
-
-            found_better = False
-            if cost_direction == 'min':
-                if next_cost < best_next_cost:
-                    best_next_cost = next_cost
-                    found_better = True
-            else:
-                if next_cost > best_next_cost:
-                    best_next_cost = next_cost
-                    found_better = True
-            
-            if found_better:
-                best_next_stack.append(next_state)
-
-        if best_next_stack:
-            best_next_state = best_next_stack.pop(0)
+        
+        for best_next_state in next_states:
+            data = graph[curr_state][best_next_state]
             pque.put(
                 (
-                    best_next_cost,
-                    moves_made + [graph[curr_state][best_next_state][:-1]],
+                    data[-1],
+                    moves_made + [data[:-1]],
                     best_next_state,
                 )
             )
