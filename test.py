@@ -7,15 +7,17 @@ import tkinter as tk
 import argparse
 import json
 import os
+import pandas as pd
+import re
 
 def get_args_parser():
     parser = argparse.ArgumentParser(prog='Puzzle Solver', description='Solve 3x3 tile puzzle')
 
     parser.add_argument(
-        '--seed',
-        type=int,
-        default=123,
-        help='Random state',
+        '--seeds',
+        type=str,
+        default='1',
+        help='Range of random states to control puzzle initialization',
     )
 
     parser.add_argument(
@@ -40,6 +42,12 @@ def get_args_parser():
         )
     
     parser.add_argument(
+        '--per-puzzle-results',
+        action='store_true',
+        help='If specified, save per-puzzle results to individual JSON files',
+    )
+    
+    parser.add_argument(
         '--output-dir', 
         type=str, 
         default='', 
@@ -51,32 +59,58 @@ def get_args_parser():
 def main(args:argparse.Namespace):
     solve_config = {} if args.solve_config is None else json.load(open(args.sovle_config, mode='r'))
 
-    root = tk.Tk()
-    puzzle = SlidePuzzle(
-        root, 
-        solve_algo=args.solve_algo, 
-        solve_config=solve_config, 
-        seed=args.seed, 
-        debug=args.debug_mode,
-        )
-    
-    reached_goal, solve_time, moves_made, num_moves = puzzle.solve_game()
-
-    res = {
-        'solved': reached_goal,
-        'solve_time': solve_time,
-        'moves': moves_made,
-        'num_moves': num_moves,
-    }
-     
     output_dir = args.output_dir
     if output_dir:
-        os.makedirs(output_dir)
-    output_path = os.path.join(output_dir, f'puzzle{args.seed}-{args.solve_algo}.json')
-    with open(output_path, mode='w') as f:
-        json.dump(res, f, indent=4)
+        os.makedirs(output_dir, exist_ok=True)
     
-    root.mainloop()
+    root = tk.Tk()
+
+    all_stats = {
+        'seed': [],
+        'solved': [],
+        'solve_time': [],
+        'num_moves': [],
+    }
+
+    seed_re = r"^\d+(-\d+)?$"
+
+    if not re.match(seed_re, args.seeds):
+        raise ValueError(f'Invalid seed string - must be of pattern {seed_re}')
+    
+    bounds = args.seeds.split('-')
+    lb, ub = int(bounds[0]), None if len(bounds) == 1 else int(bounds[1])
+    seeds = range(lb, ub if ub is not None else lb+1)
+
+    for seed in seeds:
+        print(f'Puzzle seed: {seed}')
+        print(f'Solve algorithm: {args.solve_algo}')
+        print(f'Solve config: {solve_config}')
+
+        all_stats['seed'].append(seed)
+
+        puzzle = SlidePuzzle(
+            root, 
+            solve_algo=args.solve_algo, 
+            solve_config=solve_config, 
+            seed=seed, 
+            debug=args.debug_mode,
+            )
+        
+        res = puzzle.solve_game(simulate=True)
+        print(f'Result:\n {res}')
+        print('-'*50)
+
+        for metric in res:
+            if metric in all_stats:
+                all_stats[metric].append(res[metric])
+
+        if args.per_puzzle_results:
+            output_path = os.path.join(output_dir, f'puzzle{seed}-{args.solve_algo}.json')
+            with open(output_path, mode='w') as f:
+                json.dump(res, f, indent=4)
+
+    df = pd.DataFrame.from_dict(all_stats)
+    df.to_csv(os.path.join(output_dir, f'{args.solve_algo}-all.csv'), index=False)
 
 if __name__ == '__main__':
     parser = get_args_parser()

@@ -7,6 +7,7 @@ import utils
 from typing import Literal
 import search_algos as sa
 import time
+import psutil
 
 class SlidePuzzle:
     def __init__(
@@ -293,7 +294,7 @@ class SlidePuzzle:
                     
         return graph
     
-    def solve_game(self):
+    def solve_game(self, simulate=False):
         moves_made, num_moves = [], 0
 
         if self.debug:
@@ -304,7 +305,7 @@ class SlidePuzzle:
         elif self.solve_algo == 'pc_dfs':
             moves_made, num_moves, reached_goal, solve_time = self.solve_pc_dfs()
         elif self.solve_algo == 'pc_gbfs':
-            moves_made, num_moves, reached_goal,solve_time = self.solve_pc_gbfs()
+            moves_made, num_moves, reached_goal, solve_time = self.solve_pc_gbfs()
         else:
             raise ValueError(f'Unknown/unimplemented solve algorithm {self.solve_algo}')
         
@@ -314,11 +315,18 @@ class SlidePuzzle:
             print(f'Made {num_moves} moves:\n{moves_made}')
             print('-'*50)
 
-        if reached_goal:
+        if reached_goal and not simulate:
             for move in moves_made:
                 self.make_move(move, self.current_state, self.empty_pos, simulate=False)
+                
+        res = {
+            'solved': reached_goal,
+            'solve_time': solve_time,
+            'moves': moves_made,
+            'num_moves': num_moves,
+        }
 
-        return reached_goal, solve_time, moves_made, num_moves
+        return res
             
     def solve_pc_bfs(self):
         '''
