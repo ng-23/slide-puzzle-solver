@@ -13,7 +13,7 @@ class SlidePuzzle:
     def __init__(
             self, 
             root:tk.Tk, 
-            solve_algo:Literal['pc_bfs','pc_dfs']='pc_bfs', 
+            solve_algo:Literal['pc_bfs','pc_dfs','pc_gbfs','pc_astar']='pc_bfs', 
             solve_config:dict={}, 
             goal_state:list[list[int]]|None=None, 
             seed:int=42, 
@@ -306,6 +306,8 @@ class SlidePuzzle:
             moves_made, num_moves, reached_goal, solve_time = self.solve_pc_dfs()
         elif self.solve_algo == 'pc_gbfs':
             moves_made, num_moves, reached_goal, solve_time = self.solve_pc_gbfs()
+        elif self.solve_algo == 'pc_astar':
+            moves_made, num_moves, reached_goal, solve_time = self.solve_pc_Astar()
         else:
             raise ValueError(f'Unknown/unimplemented solve algorithm {self.solve_algo}')
         
@@ -352,7 +354,7 @@ class SlidePuzzle:
     
     def solve_pc_gbfs(self):
         '''
-        Solve the puzzle using a GBFS over a precomputed search space graph w/ cost
+        Solve the puzzle using a GBFS over a precomputed search space graph w/ heuristic cost
         '''
 
         if 'cost_func' not in self.solve_config:
@@ -363,12 +365,26 @@ class SlidePuzzle:
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
         
         return *sa.precomputed_gbfs(search_space, self.goal_state), time.time()-start
+    
+    def solve_pc_Astar(self):
+        '''
+        Solve the puzzle using A* over a precomputed search space graph w/ heuristic cost
+        '''
+
+        if 'cost_func' not in self.solve_config:
+            self.solve_config['cost_func'] = 'manhattan_dist'
+
+        start = time.time()
+        
+        search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
+        
+        return *sa.precomputed_Astar(search_space, self.goal_state), time.time()-start
 
 if __name__ == "__main__":
     # for testing purposes only
     seed = 123
     debug = True
-    solve_method = 'pc_gbfs'
+    solve_method = 'pc_a*'
     solve_config = {'n_nodes':None}
     # TODO: this doesn't work, sometimes crashes if n_nodes is set too low
     goal_state = [

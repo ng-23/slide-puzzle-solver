@@ -23,7 +23,7 @@ def get_args_parser():
     parser.add_argument(
         '--solve-algo', 
         type=str, 
-        choices=['pc_bfs','pc_dfs','pc_gbfs'], 
+        choices=['pc_bfs','pc_dfs','pc_gbfs','pc_astar'], 
         default='pc_bfs', 
         help='Solve algorithm to use',
         )

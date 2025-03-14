@@ -86,7 +86,7 @@ def precomputed_dfs(graph:dict[tuple,dict[tuple,tuple[int,int]]], goal_state:tup
 
     return moves_made, len(moves_made), reached_goal
 
-def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_state:tuple[tuple], cost_direction:Literal['min','max']='min'):
+def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_state:tuple[tuple]):
     '''
     Perform a greedy best-first search on a precomputed search space graph (with edge costs)
 
@@ -94,9 +94,9 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
 
     ```
     {
-        state0: {state1: (i,j,cost1), state2: (i,j,cost2)},
+        state0: {state1: (i,j,heuristicCost1), state2: (i,j,heuristicCost2)},
         ...
-        stateN: {stateN+1: (i,j,costN+1), stateN+2: (i,j,costN+2)}
+        stateN: {stateN+1: (i,j,heuristicCostN+1), stateN+2: (i,j,heuristicCostN+2)}
     }
     ```
     
@@ -112,10 +112,6 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
     See https://stackoverflow.com/questions/8374308/is-the-greedy-best-first-search-algorithm-different-from-the-best-first-search-a
     '''
 
-    cost_direction = 'min'
-    if cost_direction != 'min' and cost_direction != 'max':
-        raise ValueError(f'Unknown/unimplemented cost direction {cost_direction}')
-
     moves_made, reached_goal = [], False
 
     pque = PriorityQueue()
@@ -123,7 +119,7 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
         0,
         [],
         next(iter(graph))
-    )) # tuple of cost to reach current state, moves made to reach current state, current state
+    )) # tuple of cost to reach current state given by f(n), moves made to reach current state, current state
 
     while not pque.empty():
         curr_cost, moves_made, curr_state = pque.get()
@@ -134,13 +130,68 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
         
         next_states = graph[curr_state].keys()
         
-        for best_next_state in next_states:
-            data = graph[curr_state][best_next_state]
+        for next_state in next_states:
+            data = graph[curr_state][next_state]
+            heuristic_cost= data[-1] # h(n)
+            
             pque.put(
                 (
-                    data[-1],
+                    heuristic_cost, # f(n) = h(n)
                     moves_made + [data[:-1]],
-                    best_next_state,
+                    next_state,
+                )
+            )
+
+    return moves_made, len(moves_made), reached_goal
+
+def precomputed_Astar(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_state:tuple[tuple]):
+    '''
+    Perform am A* search on a precomputed search space graph (with edge costs)
+
+    `graph` is expected to (generally) look like so:
+
+    ```
+    {
+        state0: {state1: (i,j,heuristicCost1), state2: (i,j,heuristicCost2)},
+        ...
+        stateN: {stateN+1: (i,j,heuristicCostN+1), stateN+2: (i,j,heuristicCostN+2)}
+    }
+    ```
+    
+    General cost function: f(n) = g(n) + h(n)
+    - n is a node, which in this case is a state
+    - f(n) is the cost function
+    - g(n) is the cost to reach the next node in the current path
+    - h(n) is the heuristic function, which generally estimates the "cost" of going from the current state to the goal state'
+    '''
+
+    moves_made, reached_goal = [], False
+
+    pque = PriorityQueue()
+    pque.put((
+        0,
+        [],
+        next(iter(graph))
+    )) # tuple of cost to reach current state given by f(n), moves made to reach current state, current state
+
+    while not pque.empty():
+        curr_cost, moves_made, curr_state = pque.get()
+
+        if curr_state == goal_state:
+            reached_goal = True
+            break
+
+        next_states = graph[curr_state].keys()
+        
+        for next_state in next_states:
+            data = graph[curr_state][next_state]
+            path_cost, heuristic_cost = len(moves_made)+1, data[-1] # g(n) and h(n)
+
+            pque.put(
+                (
+                    heuristic_cost + path_cost, # f(n) = g(n) + h(n)
+                    moves_made + [data[:-1]],
+                    next_state,
                 )
             )
 
