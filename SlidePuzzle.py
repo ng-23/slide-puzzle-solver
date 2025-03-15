@@ -237,6 +237,27 @@ class SlidePuzzle:
 
         return dist
     
+    def calc_num_misplaced_tiles(self, game_state, goal_state, goal_vals_map={}):
+        '''
+        Calculate the number of tiles in current `game_state` that are not in the correct position in final `goal_state`
+        '''
+
+        n_misplaced = 0
+        
+        if not goal_vals_map:
+            goal_vals_map = utils.get_vals_map(goal_state, self.size)
+
+        for r in range(self.size):
+            for c in range(self.size):
+                curr_val, cur_pos = game_state[r][c], (r,c)
+
+                goal_pos = goal_vals_map[curr_val]
+
+                if cur_pos != goal_pos:
+                    n_misplaced += 1
+
+        return n_misplaced
+    
     def precompute_search_space(self, init_game_state:tuple[tuple], init_empty_pos:tuple[int,int], goal_state, cost_func:str='', n_nodes:int|None=None):
         '''
         Computes a graph representing every possible unique game state and the moves to reach it
@@ -253,7 +274,7 @@ class SlidePuzzle:
         queue = [(init_game_state, [], empty_pos)] # tuple of current game state, moves made to reach current state, and position of empty tile
         seen_states = set([utils.tuplify_2dmatrix(init_game_state)])
 
-        if cost_func == 'manhattan_dist':
+        if cost_func == 'manhattan_dist' or cost_func == 'num_misplaced':
             goal_vals_map = utils.get_vals_map(goal_state, self.size)
 
         while queue:
@@ -274,6 +295,8 @@ class SlidePuzzle:
 
                 if cost_func == 'manhattan_dist':
                     state_data = state_data + tuple([self.calc_total_manhattan_dist(unseen_state, goal_state, goal_vals_map=goal_vals_map)])
+                elif cost_func == 'num_misplaced':
+                    state_data = state_data + tuple([self.calc_num_misplaced_tiles(unseen_state, goal_state, goal_vals_map=goal_vals_map)])
 
                 graph[utils.tuplify_2dmatrix(curr_state)][unseen_state] = state_data
 
@@ -378,13 +401,13 @@ class SlidePuzzle:
         
         search_space = self.precompute_search_space(self.current_state, self.empty_pos, self.goal_state, **self.solve_config)
         
-        return *sa.precomputed_Astar(search_space, self.goal_state), time.time()-start
+        return *sa.precomputed_Astar(search_space, self.goal_state, edge_weight=1), time.time()-start
 
 if __name__ == "__main__":
     # for testing purposes only
     seed = 123
     debug = True
-    solve_method = 'pc_a*'
+    solve_method = 'pc_astar'
     solve_config = {'n_nodes':None}
     # TODO: this doesn't work, sometimes crashes if n_nodes is set too low
     goal_state = [

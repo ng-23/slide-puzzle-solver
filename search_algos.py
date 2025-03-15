@@ -88,7 +88,7 @@ def precomputed_dfs(graph:dict[tuple,dict[tuple,tuple[int,int]]], goal_state:tup
 
 def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_state:tuple[tuple]):
     '''
-    Perform a greedy best-first search on a precomputed search space graph (with edge costs)
+    Perform a greedy best-first search on a precomputed search space graph
 
     `graph` is expected to (generally) look like so:
 
@@ -131,22 +131,23 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
         next_states = graph[curr_state].keys()
         
         for next_state in next_states:
-            data = graph[curr_state][next_state]
-            heuristic_cost= data[-1] # h(n)
-            
+            i, j, heuristic_cost = graph[curr_state][next_state] # h(n)
+
             pque.put(
                 (
                     heuristic_cost, # f(n) = h(n)
-                    moves_made + [data[:-1]],
+                    moves_made + [(i,j)],
                     next_state,
                 )
             )
 
     return moves_made, len(moves_made), reached_goal
 
-def precomputed_Astar(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_state:tuple[tuple]):
+def precomputed_Astar(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_state:tuple[tuple], edge_weight:int=1):
     '''
-    Perform am A* search on a precomputed search space graph (with edge costs)
+    Perform am A* search on a precomputed search space graph
+
+    Assumes the same edge weight `edge_weight` between each node
 
     `graph` is expected to (generally) look like so:
 
@@ -184,13 +185,13 @@ def precomputed_Astar(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_sta
         next_states = graph[curr_state].keys()
         
         for next_state in next_states:
-            data = graph[curr_state][next_state]
-            path_cost, heuristic_cost = len(moves_made)+1, data[-1] # g(n) and h(n)
+            i, j, heuristic_cost = graph[curr_state][next_state] # h(n)
+            path_cost = curr_cost + edge_weight # g(n), assuming constant edge weight between nodes
 
             pque.put(
                 (
-                    heuristic_cost + path_cost, # f(n) = g(n) + h(n)
-                    moves_made + [data[:-1]],
+                    path_cost + heuristic_cost, # f(n) = g(n) + h(n)
+                    moves_made + [(i,j)],
                     next_state,
                 )
             )

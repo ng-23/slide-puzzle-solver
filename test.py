@@ -57,7 +57,7 @@ def get_args_parser():
     return parser
 
 def main(args:argparse.Namespace):
-    solve_config = {} if args.solve_config is None else json.load(open(args.sovle_config, mode='r'))
+    solve_config = {} if args.solve_config is None else json.load(open(args.solve_config, mode='r'))
 
     output_dir = args.output_dir
     if output_dir:
