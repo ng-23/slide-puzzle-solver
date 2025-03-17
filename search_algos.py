@@ -120,6 +120,8 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
         next(iter(graph))
     )) # tuple of cost to reach current state given by f(n), moves made to reach current state, current state
 
+    seen_states = set([next(iter(graph))])
+
     while not pque.empty():
         curr_cost, moves_made, curr_state = pque.get()
 
@@ -127,16 +129,18 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
             reached_goal = True
             break
         
-        next_states = graph[curr_state].keys()
+        unseen_states = set(graph[curr_state].keys()) - seen_states
         
-        for next_state in next_states:
-            i, j, heuristic_cost = graph[curr_state][next_state] # h(n)
+        for unseen_state in unseen_states:
+            seen_states.add(unseen_state)
+
+            i, j, heuristic_cost = graph[curr_state][unseen_state] # h(n)
 
             pque.put(
                 (
                     heuristic_cost, # f(n) = h(n)
                     moves_made + [(i,j)],
-                    next_state,
+                    unseen_state,
                 )
             )
 
@@ -174,6 +178,8 @@ def precomputed_Astar(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_sta
         next(iter(graph))
     )) # tuple of cost to reach current state given by f(n), moves made to reach current state, current state
 
+    seen_states = set([next(iter(graph))])
+
     while not pque.empty():
         curr_cost, moves_made, curr_state = pque.get()
 
@@ -181,17 +187,19 @@ def precomputed_Astar(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_sta
             reached_goal = True
             break
 
-        next_states = graph[curr_state].keys()
+        unseen_states = set(graph[curr_state].keys()) - seen_states
         
-        for next_state in next_states:
-            i, j, heuristic_cost = graph[curr_state][next_state] # h(n)
+        for unseen_state in unseen_states:
+            seen_states.add(unseen_state)
+
+            i, j, heuristic_cost = graph[curr_state][unseen_state] # h(n)
             path_cost = curr_cost + edge_weight # g(n), assuming constant edge weight between nodes
 
             pque.put(
                 (
                     path_cost + heuristic_cost, # f(n) = g(n) + h(n)
                     moves_made + [(i,j)],
-                    next_state,
+                    unseen_state,
                 )
             )
 

@@ -9,15 +9,16 @@ import json
 import os
 import pandas as pd
 import re
+from tqdm import tqdm
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(prog='Puzzle Solver', description='Solve 3x3 tile puzzle')
+    parser = argparse.ArgumentParser(prog='Automated Slide Puzzle Solver', description='Solve 3x3 sliding tile puzzle automatically')
 
     parser.add_argument(
         '--seeds',
         type=str,
         default='1',
-        help='Range of random states to control puzzle initialization',
+        help='Range of random states to control puzzle initialization.',
     )
 
     parser.add_argument(
@@ -72,16 +73,16 @@ def main(args:argparse.Namespace):
         'num_moves': [],
     }
 
-    seed_re = r"^\d+(-\d+)?$"
+    seeds_re = r"^\d+(-\d+)?$" # seeds regex pattern, can either be a single int or a range int-int
 
-    if not re.match(seed_re, args.seeds):
-        raise ValueError(f'Invalid seed string - must be of pattern {seed_re}')
+    if not re.match(seeds_re, args.seeds):
+        raise ValueError(f'Invalid seed string - must be of pattern {seeds_re}')
     
     bounds = args.seeds.split('-')
-    lb, ub = int(bounds[0]), None if len(bounds) == 1 else int(bounds[1])
+    lb, ub = int(bounds[0]), None if len(bounds) == 1 else int(bounds[1])+1
     seeds = range(lb, ub if ub is not None else lb+1)
 
-    for seed in seeds:
+    for seed in tqdm(seeds, desc='Solve Progress'):
         print(f'Puzzle seed: {seed}')
         print(f'Solve algorithm: {args.solve_algo}')
         print(f'Solve config: {solve_config}')
