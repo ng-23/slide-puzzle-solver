@@ -17,6 +17,12 @@ def listify_2dmatrix(matrix):
     return list([list(row) for row in matrix])
 
 def get_vals_map(matrix, size):
+    '''
+    Construct a dictionary mapping a value in `matrix` to a tuple of its (row,column) position
+
+    Assumes each value in `matrix` is unique - raises an execption otherwise
+    '''
+    
     vals_map = {}
 
     for r in range(size):

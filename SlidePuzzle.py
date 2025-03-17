@@ -7,7 +7,6 @@ import utils
 from typing import Literal
 import search_algos as sa
 import time
-import psutil
 
 class SlidePuzzle:
     def __init__(
@@ -33,7 +32,7 @@ class SlidePuzzle:
         self.buttons = []
         self.tile_size = 135  # Size of each tile in pixels
         self.image_tiles = []      
-        self.disable_shuffle = True if goal_state is not None else False  
+        self.disable_shuffle = True if goal_state is not None else False
         
         # Game state
         self.current_state = []
@@ -175,6 +174,14 @@ class SlidePuzzle:
         return moves
         
     def make_move(self, new_pos, game_state, empty_pos, possible_moves=[], simulate=False):
+        '''
+        Perform a movement of 2 tiles in `game_state`. Note that a deep copy of `game_state` will always be be made and returned.
+
+        If `possible_moves` is not provided, the set of possible moves given `game_state` will be calculated.
+
+        If `simulate` is true, the changes to `game_state` will not be reflected in the board's GUI.
+        '''
+
         i, j = new_pos
         possible_moves = possible_moves if possible_moves else self.get_possible_moves(empty_pos)
         # make a copy of the game state - otherwise our modifications will be done in-place
@@ -198,6 +205,13 @@ class SlidePuzzle:
         return curr_state
                 
     def swap_tiles(self, swap_pos, game_state, empty_pos, simulate=False):
+        '''
+        Performs a swap of 2 tiles in `game_state`. Note that this is done in-place - no copy is made.
+
+        If `simulate` is false, the current `SlidePuzzle` instance's `empty_pos` attribute will be updated.
+
+        A tuple of the new empty tile's (row,column) position is always returned.
+        '''
         empty_i, empty_j = empty_pos
         swap_i, swap_j = swap_pos
         empty_val, swap_val = game_state[empty_i][empty_j], game_state[swap_i][swap_j]
@@ -261,6 +275,17 @@ class SlidePuzzle:
     def precompute_search_space(self, init_game_state:tuple[tuple], init_empty_pos:tuple[int,int], goal_state, cost_func:str='', n_nodes:int|None=None):
         '''
         Computes a graph representing every possible unique game state and the moves to reach it
+
+        Graph generally looks like so:
+        ```
+        {
+            state0: {state1: (i,j), state2: (i,j)},
+            ...
+            stateN: {stateN+1: (i,j), stateN+2: (i,j)}
+        }
+        ```
+
+        If `cost_func` is specified, the cost to reach the next state will be included in the inner dictionary's tuples.
         '''
 
         # maps a current game state to a dict
@@ -318,6 +343,22 @@ class SlidePuzzle:
         return graph
     
     def solve_game(self, simulate=False):
+        '''
+        Solve the puzzle using a specified search algorithm.
+
+        If `simulate` is true, the GUI will not be updated with the actual sequence of correct moves.
+
+        A dictionary of solve metrics (see below) is always returned.
+        ```
+        {
+            solved: bool,
+            solve_time: int,
+            moves: list[tuple[int,int]],
+            num_moves: int
+        }
+        ```
+        '''
+        
         moves_made, num_moves = [], 0
 
         if self.debug:

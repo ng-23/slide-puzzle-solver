@@ -3,7 +3,6 @@ Search algorithms
 '''
 
 from queue import PriorityQueue
-from typing import Literal
 
 def precomputed_bfs(graph:dict[tuple,dict[tuple,tuple[int,int]]], goal_state:tuple[tuple]):
     '''
