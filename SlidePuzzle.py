@@ -290,10 +290,9 @@ class SlidePuzzle:
 
         # maps a current game state to a dict
         # that maps a next game state to the move tuple that lead to it from current game state
-        graph = {}
-
         # need to be careful to avoid explicitly introducing cycles into the graph
         # search algo will still need to figure out how to avoid them itself
+        graph = {}
 
         empty_pos = init_empty_pos
         queue = [(init_game_state, [], empty_pos)] # tuple of current game state, moves made to reach current state, and position of empty tile
@@ -305,34 +304,36 @@ class SlidePuzzle:
         while queue:
             curr_state, moves_made, empty_pos = queue.pop(0)
 
-            graph[utils.tuplify_2dmatrix(curr_state)] = dict()
+            graph[utils.tuplify_2dmatrix(curr_state)] = dict() # create node in graph for current game state
 
             if n_nodes is not None and len(graph) == n_nodes:
-                # this just indicates that we only want to precompute the first n nodes
+                # this just indicates that we only want to precompute the first n states/nodes
                 break
 
             possible_moves = self.get_possible_moves(empty_pos=empty_pos)
             next_states = {utils.tuplify_2dmatrix(self.make_move(move, curr_state, empty_pos, possible_moves=possible_moves, simulate=True)): move for move in possible_moves}
-            unseen_states = set(next_states.keys()) - seen_states
 
-            for unseen_state in unseen_states:
-                state_data = next_states[unseen_state]
+            for next_state in next_states.keys():
+                state_data = next_states[next_state]
 
                 if cost_func == 'manhattan_dist':
-                    state_data = state_data + tuple([self.calc_total_manhattan_dist(unseen_state, goal_state, goal_vals_map=goal_vals_map)])
+                    state_data = state_data + tuple([self.calc_total_manhattan_dist(next_state, goal_state, goal_vals_map=goal_vals_map)])
                 elif cost_func == 'num_misplaced':
-                    state_data = state_data + tuple([self.calc_num_misplaced_tiles(unseen_state, goal_state, goal_vals_map=goal_vals_map)])
+                    state_data = state_data + tuple([self.calc_num_misplaced_tiles(next_state, goal_state, goal_vals_map=goal_vals_map)])
 
-                graph[utils.tuplify_2dmatrix(curr_state)][unseen_state] = state_data
+                graph[utils.tuplify_2dmatrix(curr_state)][next_state] = state_data
 
-                seen_states.add(unseen_state)
-                queue.append(
-                    (
-                        utils.listify_2dmatrix(unseen_state), 
-                        moves_made + [next_states[unseen_state]],
-                        next_states[unseen_state]
+                if next_state not in seen_states:
+                    # haven't seen this game state before - need to expand its potential children states
+                    # and add a node representing it to the graph
+                    seen_states.add(next_state)
+                    queue.append(
+                        (
+                            utils.listify_2dmatrix(next_state), 
+                            moves_made + [next_states[next_state]],
+                            next_states[next_state]
+                        )
                     )
-                )
 
         # "The 8-puzzle (3x3) has 9!/2 ≈ 181,440 possible states, making complete exploration feasible" per README
         # each top-level key in our graph is a unique state, aka a node
@@ -448,7 +449,7 @@ if __name__ == "__main__":
     # for testing purposes only
     seed = 123
     debug = True
-    solve_method = 'pc_astar'
+    solve_method = 'pc_dfs'
     solve_config = {'n_nodes':None}
     # TODO: this doesn't work, sometimes crashes if n_nodes is set too low
     goal_state = [

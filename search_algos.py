@@ -65,7 +65,7 @@ def precomputed_dfs(graph:dict[tuple,dict[tuple,tuple[int,int]]], goal_state:tup
     moves_made, reached_goal = [], False
 
     while stack:
-        curr_state, moves_made = stack.pop(-1) # -1 is alias for last index
+        curr_state, moves_made = stack.pop()
 
         if curr_state == goal_state:
             reached_goal = True
@@ -148,7 +148,7 @@ def precomputed_gbfs(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_stat
 
 def precomputed_Astar(graph:dict[tuple,dict[tuple,tuple[int,int,int]]], goal_state:tuple[tuple], edge_weight:int=1):
     '''
-    Perform am A* search on a precomputed search space graph
+    Perform an A* search on a precomputed search space graph
 
     Assumes the same edge weight `edge_weight` between each node
 
