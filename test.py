@@ -10,9 +10,13 @@ import os
 import pandas as pd
 import re
 from tqdm import tqdm
+from dotenv import load_dotenv
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(prog='Automated Slide Puzzle Solver', description='Solve 3x3 sliding tile puzzle automatically')
+    parser = argparse.ArgumentParser(
+        prog='Automated Slide Puzzle Solver', 
+        description='Solve 3x3 sliding tile puzzle automatically',
+        )
 
     parser.add_argument(
         '--seeds',
@@ -58,6 +62,8 @@ def get_args_parser():
     return parser
 
 def main(args:argparse.Namespace):
+    load_dotenv()
+
     solve_config = {} if args.solve_config is None else json.load(open(args.solve_config, mode='r'))
 
     output_dir = args.output_dir
@@ -82,6 +88,10 @@ def main(args:argparse.Namespace):
     lb, ub = int(bounds[0]), None if len(bounds) == 1 else int(bounds[1])+1
     seeds = range(lb, ub if ub is not None else lb+1)
 
+    img_path = os.getenv('PUZZLE_IMG_PATH')
+    if img_path is None:
+        raise Exception(f'Puzzle image filepath environment variable not found!')
+
     for seed in tqdm(seeds, desc='Solve Progress'):
         print(f'Puzzle seed: {seed}')
         print(f'Solve algorithm: {args.solve_algo}')
@@ -91,6 +101,7 @@ def main(args:argparse.Namespace):
 
         puzzle = SlidePuzzle(
             root, 
+            img_path,
             solve_algo=args.solve_algo, 
             solve_config=solve_config, 
             seed=seed, 

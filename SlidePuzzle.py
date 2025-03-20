@@ -12,6 +12,7 @@ class SlidePuzzle:
     def __init__(
             self, 
             root:tk.Tk, 
+            img_path:str,
             solve_algo:Literal['pc_bfs','pc_dfs','pc_gbfs','pc_astar']='pc_bfs', 
             solve_config:dict={}, 
             goal_state:list[list[int]]|None=None, 
@@ -28,6 +29,7 @@ class SlidePuzzle:
         self.rand = random.Random(self.seed)
 
         # UI stuff
+        self.img_path = img_path
         self.size = 3  # 3x3 grid
         self.buttons = []
         self.tile_size = 135  # Size of each tile in pixels
@@ -76,7 +78,7 @@ class SlidePuzzle:
         
     def load_image(self):
         # Open file dialog to choose an image
-        file_path = '/home/noahg/COSC405/assignment2/slide-puzzle-solver-assignment-ng-23/img.jpg'
+        file_path = self.img_path
         
         if file_path:
             # Load and resize image
@@ -447,9 +449,13 @@ class SlidePuzzle:
 
 if __name__ == "__main__":
     # for testing purposes only
+    from dotenv import load_dotenv
+    import os
+    load_dotenv()
+
     seed = 123
     debug = True
-    solve_method = 'pc_dfs'
+    solve_method = 'pc_bfs'
     solve_config = {'n_nodes':None}
     # TODO: this doesn't work, sometimes crashes if n_nodes is set too low
     goal_state = [
@@ -459,5 +465,5 @@ if __name__ == "__main__":
         ]
     
     root = tk.Tk()
-    game = SlidePuzzle(root, solve_algo=solve_method, solve_config=solve_config, goal_state=None, seed=seed, debug=debug)
+    game = SlidePuzzle(root, img_path=os.getenv('PUZZLE_IMG_PATH'), solve_algo=solve_method, solve_config=solve_config, goal_state=None, seed=seed, debug=debug)
     root.mainloop()
