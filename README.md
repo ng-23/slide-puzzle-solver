@@ -13,7 +13,7 @@ Your task is to replace the random search in the `solve_game()` method with an i
 
 ## Setup
 1. Clone the repository
-2. Change into the repo's directory, then run `pip install .` to install the necessary dependencies in `requirements.txt`
+2. Change into the repo's directory, then run `pip install -r requirements.txt` to install the necessary dependencies in `requirements.txt`
 3. Create an environment variable file called `.env` - this will store general configuration variables used by some of the scripts
 4. In the environment variable file, define a variable called `PUZZLE_IMG_PATH` and set it equal to the absolute path of the puzzle image, like so: `PUZZLE_IMG_FILEPATH = /home/me/img.jpg`
 5. Run the `test.py` script from the commandline
